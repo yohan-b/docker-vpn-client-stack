@@ -21,6 +21,11 @@ sudo bash -c "grep -q l2tp_ppp $MODULE_FILE \
 || { echo '# Loading l2tp_ppp at boot is needed to use xl2tpd with kernel drivers in docker containers' >> $MODULE_FILE; \
      echo 'l2tp_ppp' >> $MODULE_FILE; }"
 
+test -z $1 || HOST="_$1"
+test -z $2 || INSTANCE="_$2"
+test -f ~/secrets.tar.gz.enc || curl -o ~/secrets.tar.gz.enc "https://cloud.scimetis.net/s/${KEY}/download?path=%2F&files=secrets.tar.gz.enc"
+openssl enc -aes-256-cbc -d -in ~/secrets.tar.gz.enc | tar -zxv --strip 2 secrets/docker-VPN-client-FR-stack${HOST}${INSTANCE}/keys_privateinternetaccess secrets/docker-VPN-client-FR-stack${HOST}${INSTANCE}/users
+
 sudo chown root:13 users
 sudo chown root:root entrypoint.sh
 sudo chmod +x entrypoint.sh
