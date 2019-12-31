@@ -17,15 +17,25 @@ sudo bash -c "grep -q ipt_MARK $MODULE_FILE \
 || { echo '# Loading ipt_MARK at boot is needed to use iptables -j MARK in docker containers' >> $MODULE_FILE; \
      echo 'ipt_MARK' >> $MODULE_FILE; }"
 
+source vars
 test -z $1 || HOST="_$1"
 test -z $2 || INSTANCE="_$2"
-test -f ~/secrets.tar.gz.enc || curl -o ~/secrets.tar.gz.enc "https://cloud.scimetis.net/s/${KEY}/download?path=%2F&files=secrets.tar.gz.enc"
+sudo rm -f keys/*
+test -f ~/secrets.tar.gz.enc || curl -o ~/secrets.tar.gz.enc "https://${CLOUD_SERVER}/s/${KEY}/download?path=%2F&files=secrets.tar.gz.enc"
 openssl enc -aes-256-cbc -d -in ~/secrets.tar.gz.enc | sudo tar -zxv --strip 2 secrets/docker-VPN-client-stack${HOST}${INSTANCE}/keys
 
-sudo chown -R root. client.conf keys
+rm -rf ~/config
+git clone https://${GIT_SERVER}/yohan/config.git ~/config
+sudo cp -a ~/config/docker-VPN-client-stack${HOST}${INSTANCE}/client.conf ./
+test -f ~/config/docker-VPN-client-stack${HOST}${INSTANCE}/post-up.sh \
+&& sudo cp -a ~/config/docker-VPN-client-stack${HOST}${INSTANCE}/post-up.sh ./ \
+|| sudo bash -c 'echo "#!/bin/bash" > post-up.sh'
+rm -rf ~/config
+sudo chown -R root. client.conf keys post-up.sh
+sudo chmod +x post-up.sh
 
 # --force-recreate is used to recreate container when crontab file has changed
 unset VERSION_VPN_CLIENT
-VERSION_VPN_CLIENT=$(git ls-remote https://git.scimetis.net/yohan/docker-VPN-client.git| head -1 | cut -f 1|cut -c -10) \
+VERSION_VPN_CLIENT=$(git ls-remote https://${GIT_SERVER}/yohan/docker-VPN-client.git| head -1 | cut -f 1|cut -c -10) \
  sudo -E bash -c 'docker-compose up -d --force-recreate'
 
